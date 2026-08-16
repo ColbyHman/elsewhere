@@ -4,6 +4,8 @@ services:
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--save", "60", "1000", "--dir", "/data"]
     ports:
       - "6379:6379"
+    networks:
+      - web
     volumes:
       - redis-data:/data
     healthcheck:
