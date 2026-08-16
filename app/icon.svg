@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Rounded square body with notch at top-right -->
+  <path d="M8 4h28c2.2 0 3.8.8 4.6 2L58 30.6c.8.8.8 2.2 0 3L41 50.6c-.8.8-2.4 1.4-4.6 1.4H12c-2.2 0-4-1.8-4-4V8c0-2.2 1.8-4 4-4z" fill="#9F1239"/>
+  <!-- Fold triangle (darker, fills upper notch) -->
+  <path d="M36 4h8c2.2 0 3.8.8 4.6 2L58 20.6c.8.8.8 2.2 0 3L36 4z" fill="#6B0F2A" fill-opacity="0.45"/>
+</svg>
