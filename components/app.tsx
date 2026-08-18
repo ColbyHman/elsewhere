@@ -14,10 +14,22 @@ import { Modal } from "./modal";
 import { EmptyState, ErrorState, LoadingState } from "./states";
 import { ThemeToggle } from "./theme";
 
+interface EditorPreset {
+  kind?: ItemKind;
+  desire?: Desire;
+}
+
 interface EditorState {
   item: Item | null;
   initialName?: string;
+  preset?: EditorPreset;
 }
+
+const QUICK_ADDS: Array<{ label: string; preset: EditorPreset }> = [
+  { label: "To do", preset: { kind: "todo", desire: "need" } },
+  { label: "Would like to do", preset: { kind: "todo", desire: "like" } },
+  { label: "Idea", preset: { kind: "idea" } },
+];
 
 const BROWSE_CHIPS: Array<{ key: string; label: string; filter: Filter }> = [
   { key: "all", label: "All", filter: DEFAULT_FILTER },
@@ -78,7 +90,7 @@ function isLike(item: Item): boolean {
 }
 
 export function App() {
-  const { items, q, setQ, filter, setFilter, browse, setBrowse, create, toggleDone, wipeAll, refresh, status, error, offline } = useMemory();
+  const { items, q, setQ, filter, setFilter, browse, setBrowse, toggleDone, wipeAll, refresh, status, error, offline } = useMemory();
   const [name, setName] = useState("");
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -92,6 +104,14 @@ export function App() {
   const openCapture = useCallback((initialName?: string) => {
     setEditor({ item: null, initialName });
   }, []);
+
+  const openQuickAdd = useCallback(
+    (preset: EditorPreset) => {
+      setEditor({ item: null, initialName: name.trim() || undefined, preset });
+      setName("");
+    },
+    [name],
+  );
 
   const openItem = useCallback((item: Item) => {
     setEditor({ item, initialName: undefined });
@@ -151,7 +171,7 @@ export function App() {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    create({ name: trimmed });
+    openCapture(trimmed);
     setName("");
   }
 
@@ -329,7 +349,10 @@ export function App() {
             />
             <button
               type="button"
-              onClick={() => openCapture(name.trim() || undefined)}
+              onClick={() => {
+                openCapture(name.trim() || undefined);
+                setName("");
+              }}
               aria-label="Capture with details"
               title="Add details"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
@@ -337,6 +360,24 @@ export function App() {
               <PlusIcon className="h-5 w-5" />
             </button>
           </form>
+
+          <div
+            role="group"
+            aria-label="Quick add"
+            className="flex flex-wrap items-center gap-1.5"
+          >
+            {QUICK_ADDS.map((qa) => (
+              <button
+                key={qa.label}
+                type="button"
+                onClick={() => openQuickAdd(qa.preset)}
+                className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition-colors hover:border-rose-400 hover:text-rose-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 dark:hover:border-rose-500/50 dark:hover:text-rose-400"
+              >
+                <PlusIcon className="h-3.5 w-3.5" />
+                {qa.label}
+              </button>
+            ))}
+          </div>
 
           {status === "loading" ? (
             <LoadingState />
@@ -490,6 +531,7 @@ export function App() {
         <ItemEditor
           item={editor.item}
           initialName={editor.initialName}
+          preset={editor.preset}
           onClose={() => setEditor(null)}
         />
       ) : null}

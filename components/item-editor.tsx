@@ -12,6 +12,7 @@ interface ItemEditorProps {
   item: Item | null;
   onClose: () => void;
   initialName?: string;
+  preset?: { kind?: ItemKind; desire?: Desire };
 }
 
 const KIND_PLACEHOLDER: Record<ItemKind, string> = {
@@ -51,7 +52,6 @@ function detailsHaveContent(item: Item): boolean {
   return !!(
     item.description ||
     item.attention ||
-    item.desire ||
     item.area ||
     item.dueAt ||
     item.availableAt ||
@@ -60,13 +60,13 @@ function detailsHaveContent(item: Item): boolean {
   );
 }
 
-export function ItemEditor({ item, onClose, initialName }: ItemEditorProps) {
+export function ItemEditor({ item, onClose, initialName, preset }: ItemEditorProps) {
   const { create, update, remove } = useMemory();
   const [name, setName] = useState(() => item?.name ?? initialName ?? "");
-  const [kind, setKind] = useState<ItemKind>(() => item?.kind ?? "note");
+  const [kind, setKind] = useState<ItemKind>(() => item?.kind ?? preset?.kind ?? "note");
   const [description, setDescription] = useState(() => item?.description ?? "");
   const [attention, setAttention] = useState<Attention | "">(() => item?.attention ?? "");
-  const [desire, setDesire] = useState<Desire | "">(() => item?.desire ?? "");
+  const [desire, setDesire] = useState<Desire | "">(() => item?.desire ?? preset?.desire ?? "");
   const [area, setArea] = useState<Area | "">(() => item?.area ?? "");
   const [importance, setImportance] = useState<string>(() => (item?.importance ? String(item.importance) : ""));
   const [energy, setEnergy] = useState<string>(() => (item?.energy ? String(item.energy) : ""));
@@ -205,7 +205,35 @@ export function ItemEditor({ item, onClose, initialName }: ItemEditorProps) {
           ) : null}
         </Field>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Type">
+            <Segmented
+              label="Type"
+              value={kind}
+              onChange={(v) => setKind(v as ItemKind)}
+              options={[
+                { value: "note", label: KIND_LABEL.note },
+                { value: "todo", label: KIND_LABEL.todo },
+                { value: "idea", label: KIND_LABEL.idea },
+              ]}
+            />
+          </Field>
+
+          <Field label="Side">
+            <Segmented
+              label="Side"
+              value={desire}
+              onChange={(v) => setDesire(v as Desire | "")}
+              options={[
+                { value: "", label: "Not sure" },
+                { value: "need", label: DESIRE_LABEL.need },
+                { value: "like", label: DESIRE_LABEL.like },
+              ]}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label="Time">
             <Segmented
               label="Time"
@@ -251,34 +279,6 @@ export function ItemEditor({ item, onClose, initialName }: ItemEditorProps) {
 
         {detailsOpen ? (
           <div className="space-y-4 border-t border-stone-200 pt-4 dark:border-stone-800">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Type">
-                <Segmented
-                  label="Type"
-                  value={kind}
-                  onChange={(v) => setKind(v as ItemKind)}
-                  options={[
-                    { value: "note", label: KIND_LABEL.note },
-                    { value: "todo", label: KIND_LABEL.todo },
-                    { value: "idea", label: KIND_LABEL.idea },
-                  ]}
-                />
-              </Field>
-
-              <Field label="Side">
-                <Segmented
-                  label="Side"
-                  value={desire}
-                  onChange={(v) => setDesire(v as Desire | "")}
-                  options={[
-                    { value: "", label: "Not sure" },
-                    { value: "need", label: DESIRE_LABEL.need },
-                    { value: "like", label: DESIRE_LABEL.like },
-                  ]}
-                />
-              </Field>
-            </div>
-
             <Field label="Description">
               <textarea
                 value={description}
