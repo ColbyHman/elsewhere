@@ -1,4 +1,4 @@
-import type { Area, Attention, Desire, Filter, ItemKind, Mood } from "./types";
+import type { Area, Attention, Desire, Filter, ItemKind, ItemStatus, Mood, Scale } from "./types";
 
 // ── Areas ──────────────────────────────────────────────────────────────────
 
@@ -35,6 +35,8 @@ export const ATTENTION_LABEL: Record<Attention, string> = {
 
 // ── Desire ─────────────────────────────────────────────────────────────────
 
+export const DESIRES: Desire[] = ["need", "like"];
+
 export const DESIRE_LABEL: Record<Desire, string> = {
   need: "Need to do",
   like: "Would like to do",
@@ -42,11 +44,17 @@ export const DESIRE_LABEL: Record<Desire, string> = {
 
 // ── Status ─────────────────────────────────────────────────────────────────
 
+export const STATUSES: ItemStatus[] = ["open", "done", "archived"];
+
 export const STATUS_LABEL: Record<"open" | "done" | "archived", string> = {
   open: "Open",
   done: "Done",
   archived: "Archived",
 };
+
+// ── Scales ─────────────────────────────────────────────────────────────────
+
+export const SCALES: Scale[] = [1, 2, 3];
 
 // ── Item kinds ─────────────────────────────────────────────────────────────
 

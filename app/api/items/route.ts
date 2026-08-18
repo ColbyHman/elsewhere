@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import { AREAS, KINDS } from "@/lib/constants";
-import { createItem, listItems, normalizeTags, wipeAll } from "@/lib/redis";
-import type { Area, Attention, Desire, ItemKind, ItemStatus, ListParams, Scale } from "@/lib/types";
-
-const VALID_ATTENTION: Attention[] = ["now", "soon", "later", "whenever"];
-const VALID_DESIRE: Desire[] = ["need", "like"];
-const VALID_STATUS: ItemStatus[] = ["open", "done", "archived"];
-const VALID_SCALE: Scale[] = [1, 2, 3];
+import { createItem, listItems, wipeAll } from "@/lib/redis";
+import { normalizeTags } from "@/lib/text";
+import { isValidArea, isValidAttention, isValidDesire, isValidKind, isValidScale, isValidSort, isValidStatus } from "@/lib/validation";
+import type { ListParams } from "@/lib/types";
 
 function asInt(value: string | null): number | undefined {
   if (!value) return undefined;
@@ -21,34 +17,29 @@ export async function GET(request: Request) {
   const view = (sp.get("view") ?? undefined) as ListParams["view"];
   const attentionParam = sp.get("attention");
   const attention =
-    attentionParam && (VALID_ATTENTION.includes(attentionParam as Attention) || attentionParam === "inbox")
-      ? (attentionParam as Attention | "inbox")
+    attentionParam && (isValidAttention(attentionParam) || attentionParam === "inbox")
+      ? (attentionParam as ListParams["attention"])
       : undefined;
   const areaParam = sp.get("area");
-  const area = areaParam && AREAS.includes(areaParam as Area) ? (areaParam as Area) : undefined;
+  const area = areaParam && isValidArea(areaParam) ? areaParam : undefined;
   const desireParam = sp.get("desire");
-  const desire = desireParam && VALID_DESIRE.includes(desireParam as Desire) ? (desireParam as Desire) : undefined;
+  const desire = desireParam && isValidDesire(desireParam) ? desireParam : undefined;
   const statusParam = sp.get("status");
   const status =
-    statusParam &&
-    (statusParam === "all" || VALID_STATUS.includes(statusParam as ItemStatus))
-      ? (statusParam as ItemStatus | "all")
+    statusParam && (statusParam === "all" || isValidStatus(statusParam))
+      ? (statusParam as ListParams["status"])
       : undefined;
   const kindParam = sp.get("kind");
-  const kind =
-    kindParam && KINDS.includes(kindParam as ItemKind) ? (kindParam as ItemKind) : undefined;
+  const kind = kindParam && isValidKind(kindParam) ? kindParam : undefined;
   const importanceParam = sp.get("importance");
-  const importance = importanceParam && VALID_SCALE.includes(Number(importanceParam) as Scale) ? (Number(importanceParam) as Scale) : undefined;
+  const importance = importanceParam && isValidScale(Number(importanceParam)) ? (Number(importanceParam) as ListParams["importance"]) : undefined;
   const energyParam = sp.get("energy");
-  const energy = energyParam && VALID_SCALE.includes(Number(energyParam) as Scale) ? (Number(energyParam) as Scale) : undefined;
+  const energy = energyParam && isValidScale(Number(energyParam)) ? (Number(energyParam) as ListParams["energy"]) : undefined;
   const funParam = sp.get("fun");
   const fun = funParam === "true" ? true : undefined;
 
   const sortParam = sp.get("sort");
-  const sort =
-    sortParam && ["recent", "due", "updated"].includes(sortParam)
-      ? (sortParam as ListParams["sort"])
-      : undefined;
+  const sort = sortParam && isValidSort(sortParam) ? sortParam : undefined;
 
   const params: ListParams = {
     view,
@@ -95,14 +86,12 @@ export async function POST(request: Request) {
   }
 
   const description = typeof data.description === "string" ? data.description.trim() : undefined;
-  const kind = data.kind && KINDS.includes(data.kind as ItemKind) ? (data.kind as ItemKind) : undefined;
-  const area = data.area && AREAS.includes(data.area as Area) ? (data.area as Area) : undefined;
-  const attention = VALID_ATTENTION.includes(data.attention as Attention)
-    ? (data.attention as Attention)
-    : undefined;
-  const desire = VALID_DESIRE.includes(data.desire as Desire) ? (data.desire as Desire) : undefined;
-  const importance = VALID_SCALE.includes(data.importance as Scale) ? (data.importance as Scale) : undefined;
-  const energy = VALID_SCALE.includes(data.energy as Scale) ? (data.energy as Scale) : undefined;
+  const kind = data.kind && isValidKind(data.kind) ? data.kind : undefined;
+  const area = data.area && isValidArea(data.area) ? data.area : undefined;
+  const attention = isValidAttention(data.attention) ? data.attention : undefined;
+  const desire = isValidDesire(data.desire) ? data.desire : undefined;
+  const importance = isValidScale(data.importance) ? data.importance : undefined;
+  const energy = isValidScale(data.energy) ? data.energy : undefined;
   const duration =
     typeof data.duration === "number" && Number.isInteger(data.duration) && data.duration > 0
       ? data.duration
@@ -113,9 +102,7 @@ export async function POST(request: Request) {
     ? normalizeTags(data.tags.filter((t): t is string => typeof t === "string"))
     : undefined;
   const dueAt = typeof data.dueAt === "string" && data.dueAt ? data.dueAt : undefined;
-  const status = VALID_STATUS.includes(data.status as ItemStatus)
-    ? (data.status as ItemStatus)
-    : undefined;
+  const status = isValidStatus(data.status) ? data.status : undefined;
 
   try {
     const item = await createItem({ name, description, kind, area, attention, desire, importance, energy, duration, fun, availableAt, tags, dueAt, status });

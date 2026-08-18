@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-import { AREAS, KINDS } from "@/lib/constants";
-import { deleteItem, getItem, normalizeTags, updateItem } from "@/lib/redis";
-import type { Area, Attention, Desire, ItemKind, ItemStatus, Scale } from "@/lib/types";
-
-const VALID_ATTENTION: Attention[] = ["now", "soon", "later", "whenever"];
-const VALID_DESIRE: Desire[] = ["need", "like"];
-const VALID_STATUS: ItemStatus[] = ["open", "done", "archived"];
-const VALID_SCALE: Scale[] = [1, 2, 3];
+import { deleteItem, getItem, updateItem } from "@/lib/redis";
+import { normalizeTags } from "@/lib/text";
+import { isValidArea, isValidAttention, isValidDesire, isValidKind, isValidScale, isValidStatus } from "@/lib/validation";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -26,26 +21,22 @@ function coercePatch(body: unknown) {
     patch.description = typeof data.description === "string" ? data.description : null;
   }
   if (data.kind !== undefined) {
-    if (KINDS.includes(data.kind as ItemKind)) patch.kind = data.kind as ItemKind;
+    if (isValidKind(data.kind)) patch.kind = data.kind;
   }
   if (data.area !== undefined) {
-    patch.area = data.area && AREAS.includes(data.area as Area) ? (data.area as Area) : null;
+    patch.area = data.area && isValidArea(data.area) ? data.area : null;
   }
   if (data.attention !== undefined) {
-    patch.attention = VALID_ATTENTION.includes(data.attention as Attention)
-      ? (data.attention as Attention)
-      : null;
+    patch.attention = isValidAttention(data.attention) ? data.attention : null;
   }
   if (data.desire !== undefined) {
-    patch.desire = VALID_DESIRE.includes(data.desire as Desire) ? (data.desire as Desire) : null;
+    patch.desire = isValidDesire(data.desire) ? data.desire : null;
   }
   if (data.importance !== undefined) {
-    patch.importance = VALID_SCALE.includes(data.importance as Scale)
-      ? (data.importance as Scale)
-      : null;
+    patch.importance = isValidScale(data.importance) ? data.importance : null;
   }
   if (data.energy !== undefined) {
-    patch.energy = VALID_SCALE.includes(data.energy as Scale) ? (data.energy as Scale) : null;
+    patch.energy = isValidScale(data.energy) ? data.energy : null;
   }
   if (data.duration !== undefined) {
     patch.duration =
@@ -60,7 +51,7 @@ function coercePatch(body: unknown) {
     patch.availableAt = typeof data.availableAt === "string" && data.availableAt ? data.availableAt : null;
   }
   if (data.status !== undefined) {
-    patch.status = VALID_STATUS.includes(data.status as ItemStatus) ? (data.status as ItemStatus) : null;
+    patch.status = isValidStatus(data.status) ? data.status : null;
   }
   if (data.tags !== undefined) {
     patch.tags = Array.isArray(data.tags)

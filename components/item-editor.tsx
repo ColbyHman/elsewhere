@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AREAS, AREA_LABEL, ATTENTIONS, ATTENTION_LABEL, DESIRE_LABEL, DURATION_OPTIONS, KIND_LABEL } from "@/lib/constants";
+import { normalizeTag } from "@/lib/text";
 import { useMemory } from "@/lib/store";
 import type { Area, Attention, Desire, Item, ItemKind, ItemPatch, NewItem, Scale } from "@/lib/types";
 import { Field, inputClass, Segmented } from "./controls";
@@ -85,12 +86,7 @@ export function ItemEditor({ item, onClose, initialName, preset }: ItemEditorPro
   }, []);
 
   const tags = useMemo(
-    () =>
-      tagsInput
-        .split(",")
-        .map((t) => t.trim().toLowerCase().replace(/\s+/g, "-"))
-        .filter(Boolean)
-        .slice(0, 10),
+    () => tagsInput.split(",").map(normalizeTag).filter(Boolean).slice(0, 10),
     [tagsInput],
   );
 

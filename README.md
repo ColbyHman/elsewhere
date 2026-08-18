@@ -85,8 +85,16 @@ npm run build
 
 ## Project layout
 
-- `app/api/items*` — REST handlers (list/create, item CRUD, counts, choose).
-- `lib/redis.ts` — the Redis data layer: hashes + index maintenance + query translation + choose scoring.
-- `lib/store.tsx` — `MemoryProvider` / `useMemory` (filter state, optimistic mutations, offline queue).
-- `components/` — app chrome, dashboard sections, browse view, item cards, item editor, filter panel, choose modal, search.
+- `app/api/items*` — REST handlers (list/create, item CRUD, counts, choose); input parsing/validation shared via `lib/validation`.
+- `lib/` — data + domain layer:
+  - `types.ts` — domain types (Item, Filter, params).
+  - `constants.ts` — enums/labels for areas, attention, kind, desire, status, scales, durations.
+  - `items.ts` — item predicates (`isLike`).
+  - `text.ts` — tag normalization + search tokenization.
+  - `validation.ts` — API input validators.
+  - `dates.ts` — date/duration formatting.
+  - `api.ts` — the client-side HTTP wrapper.
+  - `redis.ts` — the Redis data layer: hashes + index maintenance + query translation + choose scoring.
+  - `store.tsx` — `MemoryProvider` / `useMemory` (filter state, optimistic mutations, offline queue).
+- `components/` — app chrome (`app.tsx`), dashboard sections (`dashboard.tsx`), filter panel (`filter-panel.tsx`), item cards, item editor, choose modal, search.
 - `scripts/` — backup, restore, icon generation.

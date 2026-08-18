@@ -2,6 +2,7 @@
 
 import { AREA_LABEL, EASY_WIN_ENERGY } from "@/lib/constants";
 import { formatDuration, formatRelative } from "@/lib/dates";
+import { isLike } from "@/lib/items";
 import type { Item } from "@/lib/types";
 import { LightbulbIcon, SparkleIcon } from "./icons";
 
@@ -12,7 +13,7 @@ interface MiniItemProps {
 
 export function MiniItem({ item, onOpen }: MiniItemProps) {
   const done = item.status === "done";
-  const like = item.desire === "like" || item.fun;
+  const like = isLike(item);
 
   const meta: string[] = [];
   if (item.area) meta.push(AREA_LABEL[item.area]);

@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { MOODS } from "@/lib/constants";
 import { chooseItems } from "@/lib/redis";
-import type { Desire, Mood, Scale } from "@/lib/types";
-
-const VALID_DESIRE: Desire[] = ["need", "like"];
-const VALID_SCALE: Scale[] = [1, 2, 3];
+import { isValidDesire, isValidMood, isValidScale } from "@/lib/validation";
+import type { Scale } from "@/lib/types";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -13,11 +10,11 @@ export async function GET(request: Request) {
   const timeParam = sp.get("time");
   const time = timeParam ? Number(timeParam) : NaN;
   const desireParam = sp.get("desire");
-  const desire = desireParam && VALID_DESIRE.includes(desireParam as Desire) ? (desireParam as Desire) : undefined;
+  const desire = desireParam && isValidDesire(desireParam) ? desireParam : undefined;
   const moodParam = sp.get("mood");
-  const mood = moodParam && MOODS.includes(moodParam as Mood) ? (moodParam as Mood) : undefined;
+  const mood = moodParam && isValidMood(moodParam) ? moodParam : undefined;
   const energyParam = sp.get("energy");
-  const energy = energyParam && VALID_SCALE.includes(Number(energyParam) as Scale) ? (Number(energyParam) as Scale) : undefined;
+  const energy = energyParam && isValidScale(Number(energyParam)) ? (Number(energyParam) as Scale) : undefined;
 
   try {
     const items = await chooseItems({

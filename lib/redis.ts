@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import Redis from "ioredis";
-import { AREAS, ATTENTIONS, EASY_WIN_ENERGY, IMPORTANT_IMPORTANCE, KINDS, RECENT_WINDOW_DAYS } from "./constants";
+import { AREAS, ATTENTIONS, DESIRES, EASY_WIN_ENERGY, IMPORTANT_IMPORTANCE, KINDS, RECENT_WINDOW_DAYS } from "./constants";
+import { isLike } from "./items";
+import { normalizeTags, parseTagParam, tokenize } from "./text";
 import type {
   Area,
   Attention,
@@ -34,12 +36,6 @@ const K = {
   item: (id: string) => `memory:item:${id}`,
 };
 
-const DESIRES: Desire[] = ["need", "like"];
-
-function isLike(item: Item): boolean {
-  return item.desire === "like" || item.fun;
-}
-
 export function getRedis(): Redis {
   if (client) return client;
   client = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
@@ -57,38 +53,11 @@ function toMs(iso: string): number {
   return new Date(iso).getTime();
 }
 
-export function normalizeTags(tags: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of tags) {
-    const tag = raw.trim().toLowerCase().replace(/\s+/g, "-");
-    if (!tag || tag.length > 40 || seen.has(tag)) continue;
-    seen.add(tag);
-    out.push(tag);
-    if (out.length >= 10) break;
-  }
-  return out;
-}
-
-export function parseTagParam(value: string | null | undefined): string | undefined {
-  if (!value) return undefined;
-  return value.trim().toLowerCase().replace(/\s+/g, "-");
-}
-
 function tokensFor(item: Pick<Item, "name" | "description" | "area" | "tags">): string[] {
   const parts = [item.name, item.description ?? ""];
   if (item.area) parts.push(item.area);
   parts.push(...item.tags);
-  const text = parts.join(" ").toLowerCase();
-  const matches = text.match(/[\p{L}\p{N}]+/gu) ?? [];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const m of matches) {
-    if (m.length < 2 || seen.has(m)) continue;
-    seen.add(m);
-    out.push(m);
-  }
-  return out;
+  return tokenize(parts.join(" "));
 }
 
 interface IndexKeys {
@@ -294,8 +263,7 @@ async function resolveFilters(params: ListParams): Promise<ResolvedFilters> {
   let primary: string | null = null;
 
   if (q) {
-    const tokens = q.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-    const keys = tokens.map((t) => K.search(t));
+    const keys = tokenize(q).map((t) => K.search(t));
     const r = getRedis();
     const ids = keys.length > 0 ? await r.sinter(...keys) : [];
     if (keys.length > 0) push(viewKey(params.view));
