@@ -37,13 +37,34 @@ Redis is the source of truth (no SQLite, no filesystem storage). Everything runs
 - **Choose scoring** — the `/api/items/choose` handler ranks the candidate set with mood-aware filters (urgent, admin, home, hobby, fun) plus boosts for overdue and due-soon items, a duration-vs-window fit, and a quick-win bonus for short windows at low energy.
 - **Persistence** — the Redis service runs with AOF (`appendfsync everysec`) and RDB snapshots onto a named volume.
 
-## Run with Docker (recommended)
+## Run with Docker
+
+The app image is not built by compose — it's pulled from a local registry. Push the image once, then on the server point compose at it via `IMAGE` in `.env`.
+
+### Build & push to your local registry
+
+```bash
+docker build -t localhost:5000/elsewhere:latest .
+docker push localhost:5000/elsewhere:latest
+```
+
+Swap `localhost:5000` for your registry's address. Tag with the same value you'll use for `IMAGE` on the server.
+
+### Run on the server
+
+Create `.env` in this directory (see `.env.example`):
+
+```bash
+IMAGE=localhost:5000/elsewhere:latest
+```
+
+Then start everything — the app is served at http://localhost:3001:
 
 ```bash
 docker compose up -d
 ```
 
-This starts both the app (http://localhost:3000) and Redis with persistence and a health check. Data survives restarts in the `redis-data` volume.
+Compose starts both the app and Redis with persistence and a health check. Data survives restarts in the `redis-data` volume.
 
 ### Dev without Docker
 
@@ -74,6 +95,7 @@ npm run restore
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `REDIS_URL` | `redis://localhost:6379` | Redis connection string |
+| `IMAGE` | `elsewhere:latest` | Full image reference compose runs (set in `.env` on the server, e.g. `localhost:5000/elsewhere:latest`) |
 
 ## Development
 

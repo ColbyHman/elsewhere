@@ -16,7 +16,9 @@ services:
     restart: unless-stopped
 
   app:
-    build: .
+    # Pulls the image from your registry. Set IMAGE in .env on the server,
+    # e.g. IMAGE=localhost:5000/elsewhere:latest (see .env.example).
+    image: ${IMAGE:-elsewhere:latest}
     ports:
       - "3001:3000"
     environment:
