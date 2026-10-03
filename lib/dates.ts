@@ -1,3 +1,5 @@
+import type { Attention } from "./types";
+
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
   const date = new Date(`${iso.slice(0, 10)}T00:00:00`);
@@ -46,4 +48,66 @@ export function formatDuration(minutes: number | null): string | null {
   const hours = minutes / 60;
   if (Number.isInteger(hours)) return hours === 1 ? "~1 hr" : `~${hours} hrs`;
   return `~${hours.toFixed(1).replace(/\.0$/, "")} hrs`;
+}
+
+// ── "When" ────────────────────────────────────────────────────────────────
+//
+// The editor exposes four buckets instead of separate attention + due-date
+// fields. They write onto the existing data model rather than replacing it:
+// Today/This week/Later set a concrete dueAt (so it shows up on the dated
+// timeline), Whenever sets attention only and leaves dueAt null.
+
+export type When = "today" | "week" | "later" | "whenever";
+
+export const WHENS: Array<{ value: When; label: string }> = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This week" },
+  { value: "later", label: "Later" },
+  { value: "whenever", label: "Whenever" },
+];
+
+const DAY_MS = 86400000;
+
+export function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function plusDays(days: number): string {
+  return new Date(Date.now() + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+export interface WhenFields {
+  attention: Attention;
+  dueAt: string | null;
+}
+
+export function whenToFields(when: When): WhenFields {
+  switch (when) {
+    case "today":
+      return { attention: "now", dueAt: todayISO() };
+    case "week":
+      return { attention: "soon", dueAt: plusDays(7) };
+    case "later":
+      return { attention: "later", dueAt: plusDays(30) };
+    default:
+      return { attention: "whenever", dueAt: null };
+  }
+}
+
+/** Best-effort read: which bucket does this item already sit in? */
+export function fieldsToWhen(attention: Attention | null, dueAt: string | null): When {
+  if (attention === "now") return "today";
+  if (attention === "soon") return "week";
+  if (attention === "later") return "later";
+  if (attention === "whenever") return "whenever";
+  // No attention set — infer from a due date if there is one.
+  if (dueAt) {
+    const diff = dayDiff(dueAt);
+    if (!Number.isNaN(diff)) {
+      if (diff <= 0) return "today";
+      if (diff <= 7) return "week";
+      return "later";
+    }
+  }
+  return "later";
 }

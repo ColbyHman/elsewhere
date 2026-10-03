@@ -16,7 +16,7 @@ const PROMPTS: Prompt[] = [
   { label: "I want something fun", hint: "Hobbies, games and good times", params: { mood: "fun" } },
   { label: "Something creative", hint: "Projects, learning and making things", params: { mood: "creative" } },
   { label: "Help me catch up", hint: "Urgent and due soon", params: { mood: "productive" } },
-  { label: "Run some errands", hint: "Quick chores and admin", params: { mood: "errands" } },
+  { label: "Run some errands", hint: "Short chores you can knock out", params: { mood: "errands" } },
 ];
 
 interface DashboardProps {
