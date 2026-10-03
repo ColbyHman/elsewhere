@@ -66,6 +66,22 @@ export const KIND_LABEL: Record<ItemKind, string> = {
   idea: "Idea",
 };
 
+/**
+ * Where a bare capture lands, based only on its kind. Without this an idea
+ * captured in one field ends up under "Need to do", because isLike() only
+ * looks at desire.
+ */
+export function desireForKind(kind: ItemKind): Desire | null {
+  switch (kind) {
+    case "idea":
+      return "like";
+    case "todo":
+      return "need";
+    default:
+      return null;
+  }
+}
+
 // ── Moods ──────────────────────────────────────────────────────────────────
 
 export const MOODS: Mood[] = ["anything", "productive", "easy", "fun", "creative", "errands"];

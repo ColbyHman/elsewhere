@@ -1,19 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AREAS, AREA_LABEL, ATTENTIONS, ATTENTION_LABEL, DESIRE_LABEL, DURATION_OPTIONS, KIND_LABEL } from "@/lib/constants";
+import { AREAS, AREA_LABEL, ATTENTIONS, ATTENTION_LABEL, DESIRE_LABEL, KIND_LABEL } from "@/lib/constants";
 import { normalizeTag } from "@/lib/text";
 import { useMemory } from "@/lib/store";
-import type { Area, Attention, Desire, Item, ItemKind, ItemPatch, NewItem, Scale } from "@/lib/types";
+import type { Area, Attention, Desire, Item, ItemKind, ItemPatch, Scale } from "@/lib/types";
 import { Field, inputClass, Segmented } from "./controls";
 import { ArchiveIcon, ChevronDownIcon, TrashIcon } from "./icons";
 import { Modal } from "./modal";
 
 interface ItemEditorProps {
-  item: Item | null;
+  item: Item;
   onClose: () => void;
-  initialName?: string;
-  preset?: { kind?: ItemKind; desire?: Desire };
 }
 
 const KIND_PLACEHOLDER: Record<ItemKind, string> = {
@@ -61,22 +59,22 @@ function detailsHaveContent(item: Item): boolean {
   );
 }
 
-export function ItemEditor({ item, onClose, initialName, preset }: ItemEditorProps) {
-  const { create, update, remove } = useMemory();
-  const [name, setName] = useState(() => item?.name ?? initialName ?? "");
-  const [kind, setKind] = useState<ItemKind>(() => item?.kind ?? preset?.kind ?? "note");
-  const [description, setDescription] = useState(() => item?.description ?? "");
-  const [attention, setAttention] = useState<Attention | "">(() => item?.attention ?? "");
-  const [desire, setDesire] = useState<Desire | "">(() => item?.desire ?? preset?.desire ?? "");
-  const [area, setArea] = useState<Area | "">(() => item?.area ?? "");
-  const [importance, setImportance] = useState<string>(() => (item?.importance ? String(item.importance) : ""));
-  const [energy, setEnergy] = useState<string>(() => (item?.energy ? String(item.energy) : ""));
-  const [duration, setDuration] = useState<string>(() => (item?.duration ? approxTimeLabel(item.duration) : ""));
-  const [fun, setFun] = useState<boolean>(() => item?.fun ?? false);
-  const [availableAt, setAvailableAt] = useState(() => item?.availableAt ?? "");
-  const [dueAt, setDueAt] = useState(() => item?.dueAt ?? "");
-  const [tagsInput, setTagsInput] = useState(() => item?.tags.join(", ") ?? "");
-  const [detailsOpen, setDetailsOpen] = useState(() => (item ? detailsHaveContent(item) : false));
+export function ItemEditor({ item, onClose }: ItemEditorProps) {
+  const { update, remove } = useMemory();
+  const [name, setName] = useState(item.name);
+  const [kind, setKind] = useState<ItemKind>(item.kind);
+  const [description, setDescription] = useState(item.description ?? "");
+  const [attention, setAttention] = useState<Attention | "">(item.attention ?? "");
+  const [desire, setDesire] = useState<Desire | "">(item.desire ?? "");
+  const [area, setArea] = useState<Area | "">(item.area ?? "");
+  const [importance, setImportance] = useState<string>(item.importance ? String(item.importance) : "");
+  const [energy, setEnergy] = useState<string>(item.energy ? String(item.energy) : "");
+  const [duration, setDuration] = useState<string>(item.duration ? approxTimeLabel(item.duration) : "");
+  const [fun, setFun] = useState<boolean>(item.fun);
+  const [availableAt, setAvailableAt] = useState(item.availableAt ?? "");
+  const [dueAt, setDueAt] = useState(item.dueAt ?? "");
+  const [tagsInput, setTagsInput] = useState(item.tags.join(", "));
+  const [detailsOpen, setDetailsOpen] = useState(() => detailsHaveContent(item));
   const [error, setError] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -117,49 +115,42 @@ export function ItemEditor({ item, onClose, initialName, preset }: ItemEditorPro
 
     if (item) {
       update(item.id, { ...fields, name: trimmed } as ItemPatch);
-    } else {
-      create({ name: trimmed, ...fields } as NewItem);
     }
     onClose();
   }
 
-  const archived = item?.status === "archived";
-  const isEdit = !!item;
+  const archived = item.status === "archived";
 
   return (
     <Modal
       open
-      title={isEdit ? "Edit memory" : "What do you need to remember?"}
+      title="Edit memory"
       onClose={onClose}
       footer={
         <div className="flex items-center gap-2">
-          {isEdit ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  remove(item.id);
-                  onClose();
-                }}
-                className="mr-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
-              >
-                <TrashIcon className="h-4 w-4" />
-                Delete
-              </button>
-              {!archived ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    update(item.id, { status: "archived" });
-                    onClose();
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
-                >
-                  <ArchiveIcon className="h-4 w-4" />
-                  Archive
-                </button>
-              ) : null}
-            </>
+          <button
+            type="button"
+            onClick={() => {
+              remove(item.id);
+              onClose();
+            }}
+            className="mr-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+          >
+            <TrashIcon className="h-4 w-4" />
+            Delete
+          </button>
+          {!archived ? (
+            <button
+              type="button"
+              onClick={() => {
+                update(item.id, { status: "archived" });
+                onClose();
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+            >
+              <ArchiveIcon className="h-4 w-4" />
+              Archive
+            </button>
           ) : null}
           <button
             type="button"
@@ -173,7 +164,7 @@ export function ItemEditor({ item, onClose, initialName, preset }: ItemEditorPro
             form="item-form"
             className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
           >
-            {isEdit ? "Save" : "Add"}
+            Save
           </button>
         </div>
       }
@@ -330,22 +321,6 @@ export function ItemEditor({ item, onClose, initialName, preset }: ItemEditorPro
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Time (detailed)" id="item-time">
-                <select
-                  id="item-time"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">None</option>
-                  {DURATION_OPTIONS.map((o) => (
-                    <option key={o.minutes} value={o.minutes}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
               <Field label="Available after" id="item-available">
                 <input
                   id="item-available"

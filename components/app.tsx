@@ -1,11 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AREA_LABEL, ATTENTION_LABEL, DEFAULT_FILTER, DESIRE_LABEL, KIND_LABEL, STATUS_LABEL } from "@/lib/constants";
+import {
+  AREA_LABEL,
+  ATTENTION_LABEL,
+  DEFAULT_FILTER,
+  DESIRE_LABEL,
+  KIND_LABEL,
+  KINDS,
+  STATUS_LABEL,
+  desireForKind,
+} from "@/lib/constants";
 import { upcomingLabel } from "@/lib/dates";
 import { isLike } from "@/lib/items";
 import { useMemory } from "@/lib/store";
-import type { ChooseParams, Desire, Filter, Item, ItemKind } from "@/lib/types";
+import type { ChooseParams, Filter, Item, ItemKind } from "@/lib/types";
 import { PlusIcon, SearchIcon, SettingsIcon, SlidersIcon, XIcon } from "./icons";
 import { ChooseModal } from "./choose";
 import { Dashboard } from "./dashboard";
@@ -15,23 +24,6 @@ import { ItemEditor } from "./item-editor";
 import { Modal } from "./modal";
 import { EmptyState, ErrorState, LoadingState } from "./states";
 import { ThemeToggle } from "./theme";
-
-interface EditorPreset {
-  kind?: ItemKind;
-  desire?: Desire;
-}
-
-interface EditorState {
-  item: Item | null;
-  initialName?: string;
-  preset?: EditorPreset;
-}
-
-const QUICK_ADDS: Array<{ label: string; preset: EditorPreset }> = [
-  { label: "To do", preset: { kind: "todo", desire: "need" } },
-  { label: "Would like to do", preset: { kind: "todo", desire: "like" } },
-  { label: "Idea", preset: { kind: "idea" } },
-];
 
 const BROWSE_CHIPS: Array<{ key: string; label: string; filter: Filter }> = [
   { key: "all", label: "All", filter: DEFAULT_FILTER },
@@ -73,9 +65,10 @@ function greetingForHour(hour: number): string {
 }
 
 export function App() {
-  const { items, q, setQ, filter, setFilter, browse, setBrowse, toggleDone, wipeAll, refresh, status, error, offline } = useMemory();
+  const { items, q, setQ, filter, setFilter, browse, setBrowse, create, toggleDone, wipeAll, refresh, status, error, offline } = useMemory();
   const [name, setName] = useState("");
-  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [kind, setKind] = useState<ItemKind>("note");
+  const [editor, setEditor] = useState<Item | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chooseOpen, setChooseOpen] = useState(false);
@@ -84,20 +77,8 @@ export function App() {
   const captureRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const openCapture = useCallback((initialName?: string) => {
-    setEditor({ item: null, initialName });
-  }, []);
-
-  const openQuickAdd = useCallback(
-    (preset: EditorPreset) => {
-      setEditor({ item: null, initialName: name.trim() || undefined, preset });
-      setName("");
-    },
-    [name],
-  );
-
   const openItem = useCallback((item: Item) => {
-    setEditor({ item, initialName: undefined });
+    setEditor(item);
   }, []);
 
   const backToDashboard = useCallback(() => {
@@ -154,7 +135,7 @@ export function App() {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    openCapture(trimmed);
+    create({ name: trimmed, kind, desire: desireForKind(kind) });
     setName("");
   }
 
@@ -320,47 +301,46 @@ export function App() {
             ) : null}
           </div>
 
-          <form onSubmit={handleCapture} className="flex items-center gap-2">
-            <input
-              ref={captureRef}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="What's on your mind?"
-              aria-label="What's on your mind?"
-              maxLength={300}
-              className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-[15px] text-stone-900 shadow-sm transition-colors placeholder:text-stone-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:placeholder:text-stone-500"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                openCapture(name.trim() || undefined);
-                setName("");
-              }}
-              aria-label="Capture with details"
-              title="Add details"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-            >
-              <PlusIcon className="h-5 w-5" />
-            </button>
-          </form>
-
-          <div
-            role="group"
-            aria-label="Quick add"
-            className="flex flex-wrap items-center gap-1.5"
-          >
-            {QUICK_ADDS.map((qa) => (
+          <form onSubmit={handleCapture} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                ref={captureRef}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="What's on your mind?"
+                aria-label="What's on your mind?"
+                enterKeyHint="done"
+                maxLength={300}
+                className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-[15px] text-stone-900 shadow-sm transition-colors placeholder:text-stone-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:placeholder:text-stone-500"
+              />
               <button
-                key={qa.label}
-                type="button"
-                onClick={() => openQuickAdd(qa.preset)}
-                className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition-colors hover:border-rose-400 hover:text-rose-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 dark:hover:border-rose-500/50 dark:hover:text-rose-400"
+                type="submit"
+                aria-label="Capture"
+                title="Capture"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-300 bg-white text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
               >
-                <PlusIcon className="h-3.5 w-3.5" />
-                {qa.label}
+                <PlusIcon className="h-5 w-5" />
               </button>
-            ))}
-          </div>
+            </div>
+
+            <div role="group" aria-label="Capture as" className="flex items-center gap-1.5">
+              {KINDS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={kind === k}
+                  onClick={() => setKind(k)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                    kind === k
+                      ? "border border-rose-700 text-rose-700 dark:border-rose-500 dark:text-rose-400"
+                      : "border border-stone-200 text-stone-500 hover:text-stone-800 dark:border-stone-800 dark:text-stone-500 dark:hover:text-stone-200"
+                  }`}
+                >
+                  {KIND_LABEL[k]}
+                </button>
+              ))}
+            </div>
+          </form>
 
           {status === "loading" ? (
             <LoadingState />
@@ -511,12 +491,7 @@ export function App() {
       </main>
 
       {editor ? (
-        <ItemEditor
-          item={editor.item}
-          initialName={editor.initialName}
-          preset={editor.preset}
-          onClose={() => setEditor(null)}
-        />
+        <ItemEditor item={editor} onClose={() => setEditor(null)} />
       ) : null}
 
       {chooseOpen ? (
