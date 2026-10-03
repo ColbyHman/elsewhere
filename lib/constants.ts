@@ -66,6 +66,17 @@ export const KIND_LABEL: Record<ItemKind, string> = {
   idea: "Idea",
 };
 
+export function desireForKind(kind: ItemKind): Desire | null {
+  switch (kind) {
+    case "idea":
+      return "like";
+    case "todo":
+      return "need";
+    default:
+      return null;
+  }
+}
+
 // ── Moods ──────────────────────────────────────────────────────────────────
 
 export const MOODS: Mood[] = ["anything", "productive", "easy", "fun", "creative", "errands"];

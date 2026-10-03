@@ -1,3 +1,29 @@
+/** Normalise an ISO timestamp down to its date part, for day-level comparison. */
+export function relativeDay(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/**
+ * Human day label for a YYYY-MM-DD date: "today", "tomorrow", "3 days",
+ * "15 Nov". Parsed as a local date — `new Date("2026-10-04")` is UTC midnight,
+ * which renders as the previous day for anyone west of Greenwich.
+ */
+export function humanDay(dateStr: string): string {
+  const date = new Date(`${dateStr.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateStr;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
+
+  if (diff === 0) return "today";
+  if (diff === 1) return "tomorrow";
+  if (diff === -1) return "yesterday";
+  if (diff > 1 && diff < 14) return `in ${diff} days`;
+
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+}
+
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
   const date = new Date(`${iso.slice(0, 10)}T00:00:00`);

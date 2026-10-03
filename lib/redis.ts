@@ -520,6 +520,31 @@ export async function chooseItems(params: ChooseParams = {}): Promise<Item[]> {
   return merged;
 }
 
+/**
+ * Open items whose due date has arrived or passed. Scored by the due-date
+ * index, so this stays cheap as the store grows.
+ */
+export async function listDueSoon(today: string): Promise<Item[]> {
+  const r = getRedis();
+  const ids = await r.zrangebyscore(K.due, 0, toMs(`${today}T23:59:59`));
+  if (ids.length === 0) return [];
+
+  // Items are stored as hashes, so these must be hgetall — mget silently
+  // returns nothing for a hash key.
+  const pipe = r.pipeline();
+  for (const id of ids) pipe.hgetall(K.item(id));
+  const results = (await pipe.exec()) ?? [];
+
+  const out: Item[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    const res = results[i];
+    const fields = (Array.isArray(res) ? res[1] : null) as Record<string, string> | null;
+    const item = hydrate(ids[i], fields);
+    if (item && item.status === "open") out.push(item);
+  }
+  return out;
+}
+
 export async function getCounts(): Promise<Counts> {
   const r = getRedis();
   const pipe = r.pipeline();

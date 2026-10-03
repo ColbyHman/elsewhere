@@ -1,4 +1,4 @@
-const VERSION = "memory-v2";
+const VERSION = "memory-v3";
 const CORE = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -16,6 +16,53 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
+  );
+});
+
+// ── Push (ADR-0001) ───────────────────────────────────────────────────────
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { title: "Reminder", body: event.data ? event.data.text() : "" };
+  }
+
+  const title = payload.title || "Reminder";
+  const options = {
+    body: payload.body || "",
+    // Without this, iOS silently drops the notification.
+    tag: payload.itemId ? `item-${payload.itemId}` : "elsewhere-reminder",
+    renotify: true,
+    data: { url: payload.url || "/" },
+    actions: [{ action: "open", title: "Open" }],
+  };
+
+  // showNotification is unavailable in some browser-internal contexts; never
+  // let that rejection surface as an unhandled error.
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(() => undefined),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if ("focus" in client) {
+            client.navigate(target);
+            return client.focus();
+          }
+        }
+        return self.clients.openWindow(target);
+      })
+      .catch(() => self.clients.openWindow(target)),
   );
 });
 
