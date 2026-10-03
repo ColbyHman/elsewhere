@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { AREAS, AREA_LABEL, ATTENTIONS, ATTENTION_LABEL, DESIRE_LABEL, KIND_LABEL } from "@/lib/constants";
+import {
+  AREAS,
+  AREA_LABEL,
+  DESIRE_LABEL,
+  KIND_LABEL,
+  desireForKind,
+} from "@/lib/constants";
+import { WHENS, fieldsToWhen, upcomingLabel, whenToFields, type When } from "@/lib/dates";
 import { normalizeTag } from "@/lib/text";
 import { useMemory } from "@/lib/store";
-import type { Area, Attention, Desire, Item, ItemKind, ItemPatch, Scale } from "@/lib/types";
+import type { Area, Desire, Item, ItemKind, ItemPatch, Scale } from "@/lib/types";
 import { Field, inputClass, Segmented } from "./controls";
 import { ArchiveIcon, ChevronDownIcon, TrashIcon } from "./icons";
 import { Modal } from "./modal";
@@ -47,6 +54,13 @@ function approxTimeLabel(minutes: number | null): string {
   return "180";
 }
 
+/** Reminder line under the When row, so buckets don't feel like guesswork. */
+function dueDatePreview(when: When): string {
+  const { dueAt } = whenToFields(when);
+  if (!dueAt) return "No deadline.";
+  return `Puts a due date of ${upcomingLabel(dueAt).toLowerCase()} on it.`;
+}
+
 function detailsHaveContent(item: Item): boolean {
   return !!(
     item.description ||
@@ -64,15 +78,14 @@ export function ItemEditor({ item, onClose }: ItemEditorProps) {
   const [name, setName] = useState(item.name);
   const [kind, setKind] = useState<ItemKind>(item.kind);
   const [description, setDescription] = useState(item.description ?? "");
-  const [attention, setAttention] = useState<Attention | "">(item.attention ?? "");
-  const [desire, setDesire] = useState<Desire | "">(item.desire ?? "");
+  const [when, setWhen] = useState<When>(() => fieldsToWhen(item.attention, item.dueAt));
+  const [desire, setDesire] = useState<Desire | "">(item.desire ?? desireForKind(item.kind) ?? "");
   const [area, setArea] = useState<Area | "">(item.area ?? "");
   const [importance, setImportance] = useState<string>(item.importance ? String(item.importance) : "");
   const [energy, setEnergy] = useState<string>(item.energy ? String(item.energy) : "");
   const [duration, setDuration] = useState<string>(item.duration ? approxTimeLabel(item.duration) : "");
   const [fun, setFun] = useState<boolean>(item.fun);
   const [availableAt, setAvailableAt] = useState(item.availableAt ?? "");
-  const [dueAt, setDueAt] = useState(item.dueAt ?? "");
   const [tagsInput, setTagsInput] = useState(item.tags.join(", "));
   const [detailsOpen, setDetailsOpen] = useState(() => detailsHaveContent(item));
   const [error, setError] = useState("");
@@ -98,10 +111,11 @@ export function ItemEditor({ item, onClose }: ItemEditorProps) {
     }
 
     const durationMinutes = duration ? Number(duration) : null;
+    const whenFields = whenToFields(when);
     const fields = {
       kind,
       description: description.trim() || null,
-      attention: (attention || null) as Attention | null,
+      attention: whenFields.attention,
       desire: (desire || null) as Desire | null,
       area: (area || null) as Area | null,
       importance: importance ? (Number(importance) as Scale) : null,
@@ -109,7 +123,7 @@ export function ItemEditor({ item, onClose }: ItemEditorProps) {
       duration: durationMinutes,
       fun,
       availableAt: availableAt || null,
-      dueAt: dueAt || null,
+      dueAt: whenFields.dueAt,
       tags,
     };
 
@@ -206,21 +220,6 @@ export function ItemEditor({ item, onClose }: ItemEditorProps) {
             />
           </Field>
 
-          <Field label="Side">
-            <Segmented
-              label="Side"
-              value={desire}
-              onChange={(v) => setDesire(v as Desire | "")}
-              options={[
-                { value: "", label: "Not sure" },
-                { value: "need", label: DESIRE_LABEL.need },
-                { value: "like", label: DESIRE_LABEL.like },
-              ]}
-            />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label="Time">
             <Segmented
               label="Time"
@@ -230,27 +229,21 @@ export function ItemEditor({ item, onClose }: ItemEditorProps) {
               allowClear
             />
           </Field>
-
-          <Field label="Effort">
-            <Segmented
-              label="Effort"
-              value={energy}
-              onChange={setEnergy}
-              options={SIMPLE_ENERGY_OPTIONS}
-              allowClear
-            />
-          </Field>
-
-          <Field label="Importance">
-            <Segmented
-              label="Importance"
-              value={importance}
-              onChange={setImportance}
-              options={SIMPLE_IMPORTANCE_OPTIONS}
-              allowClear
-            />
-          </Field>
         </div>
+
+        <Field label="When">
+          <Segmented
+            label="When"
+            value={when}
+            onChange={(v) => setWhen(v as When)}
+            options={WHENS}
+          />
+          <p className="text-xs text-stone-400 dark:text-stone-500">
+            {when === "whenever"
+              ? "No deadline — pick this up whenever the moment comes."
+              : dueDatePreview(when)}
+          </p>
+        </Field>
 
         <button
           type="button"
@@ -276,20 +269,24 @@ export function ItemEditor({ item, onClose }: ItemEditorProps) {
               />
             </Field>
 
-            <Field label="Attention">
+            <Field label="Effort">
               <Segmented
-                label="Attention"
-                value={attention}
-                onChange={setAttention}
-                options={[
-                  { value: "", label: "Inbox" },
-                  ...ATTENTIONS.map((a) => ({ value: a, label: ATTENTION_LABEL[a] })),
-                ]}
+                label="Effort"
+                value={energy}
+                onChange={setEnergy}
+                options={SIMPLE_ENERGY_OPTIONS}
+                allowClear
               />
-              <p className="text-xs text-stone-400 dark:text-stone-500">
-                Inbox holds it without deciding. Now is for the next thing you want to see.
-                Whenever is for the fun stuff you can pick up when the moment comes.
-              </p>
+            </Field>
+
+            <Field label="Importance">
+              <Segmented
+                label="Importance"
+                value={importance}
+                onChange={setImportance}
+                options={SIMPLE_IMPORTANCE_OPTIONS}
+                allowClear
+              />
             </Field>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -309,28 +306,29 @@ export function ItemEditor({ item, onClose }: ItemEditorProps) {
                 </select>
               </Field>
 
-              <Field label="Due date" id="item-due">
-                <input
-                  id="item-due"
-                  type="date"
-                  value={dueAt}
-                  onChange={(e) => setDueAt(e.target.value)}
+              <Field label="Side" id="item-side">
+                <select
+                  id="item-side"
+                  value={desire}
+                  onChange={(e) => setDesire(e.target.value as Desire | "")}
                   className={inputClass}
-                />
+                >
+                  <option value="">Not sure</option>
+                  <option value="need">{DESIRE_LABEL.need}</option>
+                  <option value="like">{DESIRE_LABEL.like}</option>
+                </select>
               </Field>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Available after" id="item-available">
-                <input
-                  id="item-available"
-                  type="date"
-                  value={availableAt}
-                  onChange={(e) => setAvailableAt(e.target.value)}
-                  className={inputClass}
-                />
-              </Field>
-            </div>
+            <Field label="Available after" id="item-available">
+              <input
+                id="item-available"
+                type="date"
+                value={availableAt}
+                onChange={(e) => setAvailableAt(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
 
             <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
               <input

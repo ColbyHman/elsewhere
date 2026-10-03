@@ -451,6 +451,7 @@ export async function chooseItems(params: ChooseParams = {}): Promise<Item[]> {
 
   const today = new Date().toISOString().slice(0, 10);
   const plus2 = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  const weekOut = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
   const mood = params.mood ?? "anything";
 
   const candidates = items.filter((i) => {
@@ -466,7 +467,10 @@ export async function chooseItems(params: ChooseParams = {}): Promise<Item[]> {
           !(
             i.importance === IMPORTANT_IMPORTANCE ||
             i.attention === "now" ||
-            (i.dueAt && i.dueAt <= plus2)
+            // Due soon is the signal people actually set — weight it before
+            // the legacy importance flag.
+            (i.dueAt && i.dueAt <= plus2) ||
+            (!i.dueAt && !i.attention && i.kind === "todo" && !isLike(i))
           )
         )
           return false;
@@ -482,7 +486,14 @@ export async function chooseItems(params: ChooseParams = {}): Promise<Item[]> {
           return false;
         break;
       case "errands":
-        if (!(i.area === "finance" || i.area === "health" || i.area === "home")) return false;
+        // Was hard-filtered on area, which is rarely set — this prompt
+        // returned zero results forever. Derive it instead: a short,
+        // low-stakes, non-idea chore you can knock out quickly.
+        if (i.kind === "idea") return false;
+        if (i.area && i.area !== "finance" && i.area !== "health" && i.area !== "home") return false;
+        if (i.duration && i.duration > 60) return false;
+        if (!i.duration && i.energy && i.energy > 1) return false;
+        if (!i.energy && !i.duration && !i.dueAt && !i.area && !isLike(i)) return false;
         break;
     }
     return true;
@@ -490,17 +501,34 @@ export async function chooseItems(params: ChooseParams = {}): Promise<Item[]> {
 
   const score = (item: Item): number => {
     let s = 0;
+
+    // Window fit. The old code gave a flat +3 to anything inside the window,
+    // so every bucket returned the same five items. Reward filling the window
+    // instead. When the caller names a time window this must outrank deadline
+    // pressure, otherwise due-soon items win every bucket and "a few hours"
+    // returns the same shortlist as "15 minutes".
     if (params.time) {
-      if (item.duration && item.duration <= params.time) s += 3;
-      if (item.duration && item.duration <= params.time / 2) s += 1;
-      if (params.time <= 30 && item.energy === 1) s += 1;
+      if (item.duration && item.duration <= params.time) {
+        const fill = item.duration / params.time;
+        s += fill >= 0.5 ? 10 : 6;
+      } else if (!item.duration) {
+        s += 1;
+      }
     }
-    if (item.importance === IMPORTANT_IMPORTANCE) s += 2;
-    if (item.attention === "now") s += 1;
+
+    // Deadline pressure — the other signal a real user actually sets.
     if (item.dueAt) {
-      if (item.dueAt < today) s += 2;
-      else if (item.dueAt <= plus2) s += 1;
+      if (item.dueAt < today) s += 5;
+      else if (item.dueAt === today) s += 4;
+      else if (item.dueAt <= plus2) s += 3;
+      else if (item.dueAt <= weekOut) s += 1;
     }
+    if (item.attention === "now") s += 2;
+
+    // Legacy signals, kept but no longer load-bearing.
+    if (item.importance === IMPORTANT_IMPORTANCE) s += 1;
+    if (params.time && params.time <= 30 && item.energy === EASY_WIN_ENERGY) s += 1;
+
     return s;
   };
 
